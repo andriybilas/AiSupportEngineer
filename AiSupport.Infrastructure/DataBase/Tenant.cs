@@ -11,10 +11,8 @@ namespace AiSupport.Infrastructure.DataBase
         public DateTime CreatedDateTime { get; set; }
         public DateTime UpdatedDateTime { get; set; }
 
-        // One-to-many: Tenant -> AppServices
-        public virtual ICollection<AppService> AppServices { get; set; } = new List<AppService>();
+        public virtual ICollection<Subscription> Subscriptions { get; set; } = new List<Subscription>();
 
-        // Many-to-many: Tenant <-> AppUser
         public virtual ICollection<AppUser> AppUsers { get; set; } = new List<AppUser>();
     }
 }

@@ -7,6 +7,6 @@ namespace AiSupport.Application.Models
         public string Description { get; set; } = null!;
         public DateTime CreatedDateTime { get; set; }
         public DateTime UpdatedDateTime { get; set; }
-        public IEnumerable<AppServiceModel> AppServices { get; set; } = Enumerable.Empty<AppServiceModel>();
+        public IEnumerable<SubscriptionModel> Subscriptions { get; set; } = Enumerable.Empty<SubscriptionModel>();
     }
 }

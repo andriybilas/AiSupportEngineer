@@ -7,16 +7,16 @@ namespace AiSupport.Application.Services
     {
         private readonly IUserRepository _userRepository;
         private readonly ITenantRepository _tenantRepository;
-        private readonly IAppServiceRepository _appServiceRepository;
+        private readonly ISubscriptionRepository _subscriptionRepository;
 
         public AppUserService(
             IUserRepository userRepository,
             ITenantRepository tenantRepository,
-            IAppServiceRepository appServiceRepository)
+            ISubscriptionRepository subscriptionRepository)
         {
             _userRepository = userRepository;
             _tenantRepository = tenantRepository;
-            _appServiceRepository = appServiceRepository;
+            _subscriptionRepository = subscriptionRepository;
         }
 
         public async Task<RegisterUserResult> RegisterAsync(RegisterUserRequest request)
@@ -76,10 +76,10 @@ namespace AiSupport.Application.Services
                 .Select(t => t.Id)
                 .ToList();
 
-            var appServices = await _appServiceRepository.GetServicesByTenantIdsAsync(tenantIds);
+            var subscriptions = await _subscriptionRepository.GetByTenantIdsAsync(tenantIds);
 
             var tenants = userTenants
-                .Select(ut => MapTenant(ut, appServices))
+                .Select(ut => MapTenant(ut, subscriptions))
                 .ToList();
 
             return new AppUserModel
@@ -135,11 +135,11 @@ namespace AiSupport.Application.Services
 
         private static AppTenantModel MapTenant(
             Domain.Models.AppTenant tenant,
-            IEnumerable<Domain.Models.AppService> allServices)
+            IEnumerable<Domain.Models.Subscription> allSubscriptions)
         {
-            var servicesForTenant = allServices
+            var subscriptionsForTenant = allSubscriptions
                 .Where(s => s.TenantId == tenant.Id)
-                .Select(MapService)
+                .Select(MapSubscription)
                 .ToList();
 
             return new AppTenantModel
@@ -149,7 +149,27 @@ namespace AiSupport.Application.Services
                 Description = tenant.Description,
                 CreatedDateTime = tenant.CreatedDate,
                 UpdatedDateTime = tenant.UpdatedDate,
-                AppServices = servicesForTenant
+                Subscriptions = subscriptionsForTenant
+            };
+        }
+
+        private static SubscriptionModel MapSubscription(Domain.Models.Subscription subscription)
+        {
+            var services = subscription.AppServices
+                .Select(MapService)
+                .ToList();
+
+            return new SubscriptionModel
+            {
+                Id = subscription.Id,
+                TenantId = subscription.TenantId,
+                Name = subscription.Name,
+                Status = subscription.Status.ToString(),
+                StartDate = subscription.StartDate,
+                EndDate = subscription.EndDate,
+                CreatedDateTime = subscription.CreatedDate,
+                UpdatedDateTime = subscription.UpdatedDate,
+                AppServices = services
             };
         }
 
@@ -165,3 +185,4 @@ namespace AiSupport.Application.Services
         }
     }
 }
+

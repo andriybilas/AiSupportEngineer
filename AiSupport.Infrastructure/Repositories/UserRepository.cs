@@ -115,6 +115,39 @@ namespace AiSupport.Infrastructure.Repositories
             return UserUpdateResult.Ok();
         }
 
+        public async Task<CredentialValidationResult> ValidateCredentialsAsync(
+            string userNameOrEmail,
+            string password)
+        {
+            var user = await _userManager.FindByNameAsync(userNameOrEmail);
+
+            if (user == null)
+            {
+                user = await _userManager.FindByEmailAsync(userNameOrEmail);
+            }
+
+            if (user == null)
+            {
+                return CredentialValidationResult.Failed();
+            }
+
+            var passwordValid = await _userManager.CheckPasswordAsync(user, password);
+
+            if (!passwordValid)
+            {
+                return CredentialValidationResult.Failed();
+            }
+
+            var userName = user.UserName;
+
+            if (string.IsNullOrWhiteSpace(userName))
+            {
+                userName = user.Email ?? string.Empty;
+            }
+
+            return CredentialValidationResult.Ok(user.Id, userName);
+        }
+
         private static DomainAppUser MapToDomain(AppUser entity)
         {
             var name = entity.Name;

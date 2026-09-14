@@ -1,17 +1,30 @@
-# AGENTS.md — AiSupportEngineer
+# AGENTS.md - AiSupportEngineer
 
 ## Purpose
 
 AiSupportEngineer is a multi-tenant AI support engineer platform built with .NET.
-Users belong to tenants; tenants own services. The codebase follows Onion / Clean Architecture.
+Users belong to tenants (organizations); tenants hold subscriptions that grant access to catalog AppServices. The codebase follows Onion / Clean Architecture.
+
+## Domain model
+
+```
+AppUser <-M:N-> AppTenant (organization / workspace)
+AppTenant 1->N Subscription (what the org purchased)
+Subscription <-M:N-> AppService (global product catalog)
+```
+
+- **Tenant (AppTenant / EF Tenant)**: customer organization. Not a service pack.
+- **AppService**: sellable support product in a global catalog (not owned by a tenant).
+- **Subscription**: a tenant's entitlement to a set of AppServices for a period (Active / Cancelled / Expired).
+- User access to services = membership in Tenant + active Subscriptions of that Tenant. No direct User<->AppService.
 
 ## Architecture
 
 Dependencies point **inward only**:
 
 ```
-Api → Application → Domain
-Api → Infrastructure → Application → Domain
+Api -> Application -> Domain
+Api -> Infrastructure -> Application -> Domain
 ```
 
 | Layer | Responsibility |
@@ -28,15 +41,15 @@ Api → Infrastructure → Application → Domain
 - **Adapters** (repository implementations, EF entities, Identity) live in Infrastructure.
 - **Api** registers Infrastructure via `AddInfrastructure(...)` and application services.
 - Identity + EF Core stay in Infrastructure; Domain never references them.
-- Map EF entities ↔ Domain models inside Infrastructure.
+- Map EF entities <-> Domain models inside Infrastructure.
 
 ## Solution map
 
-- `AiSupport.Api` — HTTP host / composition root
-- `AiSupport.Application` — services, app models, repository interfaces
-- `AiSupport.Domain` — domain models
-- `AiSupport.Infrastructure` — DbContext, EF entities, migrations, repository implementations, DI extension
-- `AiSupport.Tests` — tests
+- `AiSupport.Api` - HTTP host / composition root
+- `AiSupport.Application` - services, app models, repository interfaces
+- `AiSupport.Domain` - domain models
+- `AiSupport.Infrastructure` - DbContext, EF entities, migrations, repository implementations, DI extension
+- `AiSupport.Tests` - tests
 
 Solution file: `AiSupportEngineer/AiSupportEngineer.slnx`
 
@@ -46,7 +59,7 @@ Solution file: `AiSupportEngineer/AiSupportEngineer.slnx`
 - Separate each `if` block from surrounding statements with a blank line. Keep `else` attached to the `if`.
 - Split complex conditions, method calls, and LINQ across multiple lines.
 - Separate every multiline expression/statement from surrounding statements with a blank line (not against enclosing braces).
-- Do not pass a ternary directly as a method argument — assign to a named local first.
+- Do not pass a ternary directly as a method argument - assign to a named local first.
 - Extract dense predicates into named methods when it helps readability.
 
 ## Don'ts

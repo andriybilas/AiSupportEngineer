@@ -15,6 +15,10 @@ namespace AiSupport.Api
             builder.Services.AddInfrastructure(builder.Configuration);
 
             builder.Services.AddScoped<AppUserService>();
+            builder.Services.AddScoped<AppServiceCatalogService>();
+            builder.Services.AddScoped<TenantService>();
+            builder.Services.AddScoped<SubscriptionService>();
+            builder.Services.AddScoped<AuthService>();
 
             var app = builder.Build();
 
@@ -22,6 +26,9 @@ namespace AiSupport.Api
             {
                 app.MapOpenApi();
             }
+
+            app.UseAuthentication();
+            app.UseAuthorization();
 
             app.MapControllers();
 

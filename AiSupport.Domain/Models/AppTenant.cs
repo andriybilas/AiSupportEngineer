@@ -7,6 +7,6 @@ namespace AiSupport.Domain.Models
         public string Description { get; set; } = string.Empty;
         public DateTime CreatedDate { get; set; }
         public DateTime UpdatedDate { get; set; }
-        public IList<AppService> AppServices { get; set; } = new List<AppService>();
+        public IList<Subscription> Subscriptions { get; set; } = new List<Subscription>();
     }
 }

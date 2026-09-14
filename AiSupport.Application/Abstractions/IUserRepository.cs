@@ -20,5 +20,9 @@ namespace AiSupport.Application.Abstractions
             string? email,
             string? firstName,
             string? lastName);
+
+        Task<CredentialValidationResult> ValidateCredentialsAsync(
+            string userNameOrEmail,
+            string password);
     }
 }

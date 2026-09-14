@@ -1,5 +1,6 @@
 using AiSupport.Application.Models;
 using AiSupport.Application.Services;
+using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 
 namespace AiSupport.Api.Controllers
@@ -15,6 +16,7 @@ namespace AiSupport.Api.Controllers
             _userService = userService;
         }
 
+        [AllowAnonymous]
         [HttpPost("register")]
         public async Task<IActionResult> Register([FromBody] RegisterUserRequest request)
         {
@@ -31,6 +33,7 @@ namespace AiSupport.Api.Controllers
                 new { userId = result.UserId });
         }
 
+        [Authorize]
         [HttpGet("{userId:guid}")]
         public async Task<IActionResult> GetUser(Guid userId)
         {
@@ -44,6 +47,7 @@ namespace AiSupport.Api.Controllers
             return Ok(user);
         }
 
+        [Authorize]
         [HttpPut("{userId:guid}")]
         public async Task<IActionResult> UpdateUser(Guid userId, [FromBody] UpdateUserRequest request)
         {
