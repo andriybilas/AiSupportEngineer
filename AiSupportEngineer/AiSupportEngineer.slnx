@@ -1,0 +1,11 @@
+<Solution>
+  <Folder Name="/src/">
+    <Project Path="../AiSupport.Api/AiSupport.Api.csproj" />
+    <Project Path="../AiSupport.Application/AiSupport.Application.csproj" />
+    <Project Path="../AiSupport.Domain/AiSupport.Domain.csproj" />
+    <Project Path="../AiSupport.Infrastructure/AiSupport.Infrastructure.csproj" />
+  </Folder>
+  <Folder Name="/tests/">
+    <Project Path="../AiSupport.Tests/AiSupport.Tests.csproj" />
+  </Folder>
+</Solution>
