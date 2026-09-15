@@ -1,9 +1,9 @@
 using AiSupport.Application.Abstractions;
 using AiSupport.Application.Models;
+using AiSupport.Domain.Models;
 using AiSupport.Infrastructure.DataBase;
 using Microsoft.AspNetCore.Identity;
 using Microsoft.EntityFrameworkCore;
-using DomainAppUser = AiSupport.Domain.Models.AppUser;
 
 namespace AiSupport.Infrastructure.Repositories
 {
@@ -18,18 +18,11 @@ namespace AiSupport.Infrastructure.Repositories
             _userManager = userManager;
         }
 
-        public async Task<DomainAppUser?> GetUserByIdAsync(Guid userId)
+        public async Task<AppUser?> GetUserByIdAsync(Guid userId)
         {
-            var entity = await _db.Users
+            return await _db.Users
                 .AsNoTracking()
                 .FirstOrDefaultAsync(u => u.Id == userId);
-
-            if (entity == null)
-            {
-                return null;
-            }
-
-            return MapToDomain(entity);
         }
 
         public async Task<UserCreationResult> CreateUserAsync(
@@ -146,27 +139,6 @@ namespace AiSupport.Infrastructure.Repositories
             }
 
             return CredentialValidationResult.Ok(user.Id, userName);
-        }
-
-        private static DomainAppUser MapToDomain(AppUser entity)
-        {
-            var name = entity.Name;
-
-            if (string.IsNullOrWhiteSpace(name))
-            {
-                name = entity.UserName ?? string.Empty;
-            }
-
-            return new DomainAppUser
-            {
-                Id = entity.Id,
-                Name = name,
-                Email = entity.Email ?? string.Empty,
-                FirstName = entity.FirstName,
-                LastName = entity.LastName,
-                CreatedDate = entity.CreatedDateTime,
-                UpdatedDate = entity.UpdatedDateTime
-            };
         }
     }
 }

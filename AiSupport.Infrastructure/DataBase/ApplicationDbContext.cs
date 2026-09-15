@@ -1,4 +1,4 @@
-using System;
+using AiSupport.Domain.Models;
 using Microsoft.AspNetCore.Identity;
 using Microsoft.AspNetCore.Identity.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore;
@@ -8,7 +8,7 @@ namespace AiSupport.Infrastructure.DataBase
     public class ApplicationDbContext : IdentityDbContext<AppUser, IdentityRole<Guid>, Guid>
     {
         public DbSet<AppService> AppServices { get; set; } = null!;
-        public DbSet<Tenant> Tenants { get; set; } = null!;
+        public DbSet<AppTenant> Tenants { get; set; } = null!;
         public DbSet<Subscription> Subscriptions { get; set; } = null!;
 
         public ApplicationDbContext(DbContextOptions<ApplicationDbContext> options) : base(options)
@@ -32,7 +32,7 @@ namespace AiSupport.Infrastructure.DataBase
                  .WithMany(t => t.AppUsers)
                  .UsingEntity<Dictionary<string, object>>(
                     "AppUserTenant",
-                    j => j.HasOne<Tenant>().WithMany().HasForeignKey("TenantId").OnDelete(DeleteBehavior.Cascade),
+                    j => j.HasOne<AppTenant>().WithMany().HasForeignKey("TenantId").OnDelete(DeleteBehavior.Cascade),
                     j => j.HasOne<AppUser>().WithMany().HasForeignKey("AppUserId").OnDelete(DeleteBehavior.Cascade),
                     j =>
                     {
@@ -41,8 +41,9 @@ namespace AiSupport.Infrastructure.DataBase
                     });
             });
 
-            builder.Entity<Tenant>(b =>
+            builder.Entity<AppTenant>(b =>
             {
+                b.ToTable("Tenants");
                 b.HasKey(t => t.Id);
                 b.Property(t => t.Name).IsRequired();
 
@@ -56,7 +57,9 @@ namespace AiSupport.Infrastructure.DataBase
             {
                 b.HasKey(s => s.Id);
                 b.Property(s => s.Name).IsRequired();
-                b.Property(s => s.Status).IsRequired();
+                b.Property(s => s.Status)
+                    .HasConversion<string>()
+                    .IsRequired();
 
                 b.HasMany(s => s.AppServices)
                  .WithMany(a => a.Subscriptions)

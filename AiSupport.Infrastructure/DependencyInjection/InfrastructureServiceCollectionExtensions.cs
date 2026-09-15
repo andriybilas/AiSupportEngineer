@@ -1,5 +1,6 @@
 using System.Text;
 using AiSupport.Application.Abstractions;
+using AiSupport.Domain.Models;
 using AiSupport.Infrastructure.Auth;
 using AiSupport.Infrastructure.DataBase;
 using AiSupport.Infrastructure.Repositories;
@@ -21,7 +22,7 @@ namespace AiSupport.Infrastructure.DependencyInjection
             var connectionString = configuration.GetConnectionString("DefaultConnection");
 
             services.AddDbContext<ApplicationDbContext>(options =>
-                options.UseSqlServer(connectionString));
+                options.UseNpgsql(connectionString));
 
             services
                 .AddIdentity<AppUser, IdentityRole<Guid>>()

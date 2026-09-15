@@ -1,8 +1,8 @@
 using AiSupport.Application.Abstractions;
 using AiSupport.Application.Models;
+using AiSupport.Domain.Models;
 using AiSupport.Infrastructure.DataBase;
 using Microsoft.EntityFrameworkCore;
-using DomainAppTenant = AiSupport.Domain.Models.AppTenant;
 
 namespace AiSupport.Infrastructure.Repositories
 {
@@ -15,48 +15,33 @@ namespace AiSupport.Infrastructure.Repositories
             _db = db;
         }
 
-        public async Task<IEnumerable<DomainAppTenant>> GetUserTenantsAsync(Guid userId)
+        public async Task<IEnumerable<AppTenant>> GetUserTenantsAsync(Guid userId)
         {
-            var entities = await _db.Tenants
+            return await _db.Tenants
                 .Where(t => t.AppUsers.Any(u => u.Id == userId))
                 .AsNoTracking()
                 .ToListAsync();
-
-            return entities
-                .Select(MapToDomain)
-                .ToList();
         }
 
-        public async Task<DomainAppTenant?> GetByIdAsync(Guid id)
+        public async Task<AppTenant?> GetByIdAsync(Guid id)
         {
-            var entity = await _db.Tenants
+            return await _db.Tenants
                 .AsNoTracking()
                 .FirstOrDefaultAsync(t => t.Id == id);
-
-            if (entity == null)
-            {
-                return null;
-            }
-
-            return MapToDomain(entity);
         }
 
-        public async Task<IEnumerable<DomainAppTenant>> GetAllAsync()
+        public async Task<IEnumerable<AppTenant>> GetAllAsync()
         {
-            var entities = await _db.Tenants
+            return await _db.Tenants
                 .AsNoTracking()
                 .ToListAsync();
-
-            return entities
-                .Select(MapToDomain)
-                .ToList();
         }
 
-        public async Task<DomainAppTenant> CreateAsync(string name, string description)
+        public async Task<AppTenant> CreateAsync(string name, string description)
         {
             var now = DateTime.UtcNow;
 
-            var entity = new Tenant
+            var entity = new AppTenant
             {
                 Id = Guid.NewGuid(),
                 Name = name,
@@ -68,7 +53,7 @@ namespace AiSupport.Infrastructure.Repositories
             _db.Tenants.Add(entity);
             await _db.SaveChangesAsync();
 
-            return MapToDomain(entity);
+            return entity;
         }
 
         public async Task<EntityOperationResult> UpdateAsync(Guid id, string? name, string? description)
@@ -169,19 +154,6 @@ namespace AiSupport.Infrastructure.Repositories
             await _db.SaveChangesAsync();
 
             return EntityOperationResult.Ok();
-        }
-
-        private static DomainAppTenant MapToDomain(Tenant entity)
-        {
-            return new DomainAppTenant
-            {
-                Id = entity.Id,
-                Name = entity.Name,
-                Description = entity.Description,
-                CreatedDate = entity.CreatedDateTime,
-                UpdatedDate = entity.UpdatedDateTime,
-                Subscriptions = new List<AiSupport.Domain.Models.Subscription>()
-            };
         }
     }
 }

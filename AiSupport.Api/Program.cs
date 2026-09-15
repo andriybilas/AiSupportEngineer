@@ -1,4 +1,4 @@
-using AiSupport.Application.Services;
+using AiSupport.Application.DependencyInjection;
 using AiSupport.Infrastructure.DependencyInjection;
 
 namespace AiSupport.Api
@@ -12,13 +12,8 @@ namespace AiSupport.Api
             builder.Services.AddControllers();
             builder.Services.AddOpenApi();
 
+            builder.Services.AddApplication();
             builder.Services.AddInfrastructure(builder.Configuration);
-
-            builder.Services.AddScoped<AppUserService>();
-            builder.Services.AddScoped<AppServiceCatalogService>();
-            builder.Services.AddScoped<TenantService>();
-            builder.Services.AddScoped<SubscriptionService>();
-            builder.Services.AddScoped<AuthService>();
 
             var app = builder.Build();
 

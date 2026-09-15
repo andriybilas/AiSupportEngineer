@@ -82,13 +82,20 @@ namespace AiSupport.Application.Services
                 .Select(ut => MapTenant(ut, subscriptions))
                 .ToList();
 
+            var userName = user.Name;
+
+            if (string.IsNullOrWhiteSpace(userName))
+            {
+                userName = user.UserName ?? string.Empty;
+            }
+
             return new AppUserModel
             {
                 Id = user.Id,
-                UserName = user.Name,
+                UserName = userName,
                 FirstName = user.FirstName,
                 LastName = user.LastName,
-                Email = user.Email,
+                Email = user.Email ?? string.Empty,
                 Tenants = tenants
             };
         }
@@ -147,8 +154,8 @@ namespace AiSupport.Application.Services
                 Id = tenant.Id,
                 Name = tenant.Name,
                 Description = tenant.Description,
-                CreatedDateTime = tenant.CreatedDate,
-                UpdatedDateTime = tenant.UpdatedDate,
+                CreatedDateTime = tenant.CreatedDateTime,
+                UpdatedDateTime = tenant.UpdatedDateTime,
                 Subscriptions = subscriptionsForTenant
             };
         }
@@ -167,8 +174,8 @@ namespace AiSupport.Application.Services
                 Status = subscription.Status.ToString(),
                 StartDate = subscription.StartDate,
                 EndDate = subscription.EndDate,
-                CreatedDateTime = subscription.CreatedDate,
-                UpdatedDateTime = subscription.UpdatedDate,
+                CreatedDateTime = subscription.CreatedDateTime,
+                UpdatedDateTime = subscription.UpdatedDateTime,
                 AppServices = services
             };
         }
@@ -185,4 +192,6 @@ namespace AiSupport.Application.Services
         }
     }
 }
+
+
 

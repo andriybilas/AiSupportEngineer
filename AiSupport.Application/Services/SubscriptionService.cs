@@ -132,7 +132,7 @@ namespace AiSupport.Application.Services
                     Id = s.Id,
                     Name = s.Name,
                     Price = s.Price,
-                    Description = s.Description
+                    Description = s.Description ?? string.Empty
                 })
                 .ToList();
 
@@ -144,10 +144,11 @@ namespace AiSupport.Application.Services
                 Status = subscription.Status.ToString(),
                 StartDate = subscription.StartDate,
                 EndDate = subscription.EndDate,
-                CreatedDateTime = subscription.CreatedDate,
-                UpdatedDateTime = subscription.UpdatedDate,
+                CreatedDateTime = subscription.CreatedDateTime,
+                UpdatedDateTime = subscription.UpdatedDateTime,
                 AppServices = services
             };
         }
     }
 }
+

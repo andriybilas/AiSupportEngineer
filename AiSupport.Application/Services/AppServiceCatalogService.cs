@@ -98,8 +98,9 @@ namespace AiSupport.Application.Services
                 Id = service.Id,
                 Name = service.Name,
                 Price = service.Price,
-                Description = service.Description
+                Description = service.Description ?? string.Empty
             };
         }
     }
 }
+

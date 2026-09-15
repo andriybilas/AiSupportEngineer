@@ -100,10 +100,11 @@ namespace AiSupport.Application.Services
                 Id = tenant.Id,
                 Name = tenant.Name,
                 Description = tenant.Description,
-                CreatedDateTime = tenant.CreatedDate,
-                UpdatedDateTime = tenant.UpdatedDate,
+                CreatedDateTime = tenant.CreatedDateTime,
+                UpdatedDateTime = tenant.UpdatedDateTime,
                 Subscriptions = Enumerable.Empty<SubscriptionModel>()
             };
         }
     }
 }
+

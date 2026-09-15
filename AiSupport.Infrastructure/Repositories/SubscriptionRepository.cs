@@ -3,10 +3,6 @@ using AiSupport.Application.Models;
 using AiSupport.Domain.Models;
 using AiSupport.Infrastructure.DataBase;
 using Microsoft.EntityFrameworkCore;
-using DomainSubscription = AiSupport.Domain.Models.Subscription;
-using DomainAppService = AiSupport.Domain.Models.AppService;
-using EfSubscription = AiSupport.Infrastructure.DataBase.Subscription;
-using EfAppService = AiSupport.Infrastructure.DataBase.AppService;
 
 namespace AiSupport.Infrastructure.Repositories
 {
@@ -19,54 +15,39 @@ namespace AiSupport.Infrastructure.Repositories
             _db = db;
         }
 
-        public async Task<IEnumerable<DomainSubscription>> GetByTenantIdsAsync(IEnumerable<Guid> tenantIds)
+        public async Task<IEnumerable<Subscription>> GetByTenantIdsAsync(IEnumerable<Guid> tenantIds)
         {
             var ids = tenantIds?.ToList() ?? new List<Guid>();
 
             if (ids.Count == 0)
             {
-                return new List<DomainSubscription>();
+                return new List<Subscription>();
             }
 
-            var entities = await _db.Subscriptions
+            return await _db.Subscriptions
                 .Where(s => ids.Contains(s.TenantId))
                 .Include(s => s.AppServices)
                 .AsNoTracking()
                 .ToListAsync();
-
-            return entities
-                .Select(MapToDomain)
-                .ToList();
         }
 
-        public async Task<DomainSubscription?> GetByIdAsync(Guid id)
+        public async Task<Subscription?> GetByIdAsync(Guid id)
         {
-            var entity = await _db.Subscriptions
+            return await _db.Subscriptions
                 .Include(s => s.AppServices)
                 .AsNoTracking()
                 .FirstOrDefaultAsync(s => s.Id == id);
-
-            if (entity == null)
-            {
-                return null;
-            }
-
-            return MapToDomain(entity);
         }
 
-        public async Task<IEnumerable<DomainSubscription>> GetAllAsync()
+        public async Task<IEnumerable<Subscription>> GetAllAsync()
         {
-            var entities = await _db.Subscriptions
+            return await _db.Subscriptions
                 .Include(s => s.AppServices)
                 .AsNoTracking()
                 .ToListAsync();
-
-            return entities
-                .Select(MapToDomain)
-                .ToList();
         }
 
-        public async Task<EntityCreateResult<DomainSubscription>> CreateAsync(
+        public async Task<EntityCreateResult<Subscription>> CreateAsync(
             Guid tenantId,
             string name,
             SubscriptionStatus status,
@@ -78,11 +59,11 @@ namespace AiSupport.Infrastructure.Repositories
 
             if (!tenantExists)
             {
-                return EntityCreateResult<DomainSubscription>.Failed("Tenant not found.");
+                return EntityCreateResult<Subscription>.Failed("Tenant not found.");
             }
 
             var serviceIdList = appServiceIds?.Distinct().ToList() ?? new List<Guid>();
-            var services = new List<EfAppService>();
+            var services = new List<AppService>();
 
             if (serviceIdList.Count > 0)
             {
@@ -92,19 +73,19 @@ namespace AiSupport.Infrastructure.Repositories
 
                 if (services.Count != serviceIdList.Count)
                 {
-                    return EntityCreateResult<DomainSubscription>.Failed(
+                    return EntityCreateResult<Subscription>.Failed(
                         "One or more AppServiceIds do not exist.");
                 }
             }
 
             var now = DateTime.UtcNow;
 
-            var entity = new EfSubscription
+            var entity = new Subscription
             {
                 Id = Guid.NewGuid(),
                 TenantId = tenantId,
                 Name = name,
-                Status = status.ToString(),
+                Status = status,
                 StartDate = startDate,
                 EndDate = endDate,
                 CreatedDateTime = now,
@@ -115,7 +96,7 @@ namespace AiSupport.Infrastructure.Repositories
             _db.Subscriptions.Add(entity);
             await _db.SaveChangesAsync();
 
-            return EntityCreateResult<DomainSubscription>.Ok(MapToDomain(entity));
+            return EntityCreateResult<Subscription>.Ok(entity);
         }
 
         public async Task<EntityOperationResult> UpdateAsync(
@@ -142,7 +123,7 @@ namespace AiSupport.Infrastructure.Repositories
 
             if (status != null)
             {
-                entity.Status = status.Value.ToString();
+                entity.Status = status.Value;
             }
 
             if (startDate != null)
@@ -158,7 +139,7 @@ namespace AiSupport.Infrastructure.Repositories
             if (appServiceIds != null)
             {
                 var serviceIdList = appServiceIds.Distinct().ToList();
-                var services = new List<EfAppService>();
+                var services = new List<AppService>();
 
                 if (serviceIdList.Count > 0)
                 {
@@ -201,49 +182,6 @@ namespace AiSupport.Infrastructure.Repositories
             await _db.SaveChangesAsync();
 
             return EntityOperationResult.Ok();
-        }
-
-        private static DomainSubscription MapToDomain(EfSubscription entity)
-        {
-            var status = ParseStatus(entity.Status);
-
-            var services = entity.AppServices
-                .Select(MapService)
-                .ToList();
-
-            return new DomainSubscription
-            {
-                Id = entity.Id,
-                TenantId = entity.TenantId,
-                Name = entity.Name,
-                Status = status,
-                StartDate = entity.StartDate,
-                EndDate = entity.EndDate,
-                CreatedDate = entity.CreatedDateTime,
-                UpdatedDate = entity.UpdatedDateTime,
-                AppServices = services
-            };
-        }
-
-        private static DomainAppService MapService(EfAppService entity)
-        {
-            return new DomainAppService
-            {
-                Id = entity.Id,
-                Name = entity.Name,
-                Price = entity.Price,
-                Description = entity.Description ?? string.Empty
-            };
-        }
-
-        private static SubscriptionStatus ParseStatus(string status)
-        {
-            if (Enum.TryParse<SubscriptionStatus>(status, ignoreCase: true, out var parsed))
-            {
-                return parsed;
-            }
-
-            return SubscriptionStatus.Expired;
         }
     }
 }
