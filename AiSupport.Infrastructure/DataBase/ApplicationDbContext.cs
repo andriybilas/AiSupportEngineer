@@ -10,6 +10,8 @@ namespace AiSupport.Infrastructure.DataBase
         public DbSet<AppService> AppServices { get; set; } = null!;
         public DbSet<AppTenant> Tenants { get; set; } = null!;
         public DbSet<Subscription> Subscriptions { get; set; } = null!;
+        public DbSet<Customer> Customers { get; set; } = null!;
+        public DbSet<PaymentAttempt> PaymentAttempts { get; set; } = null!;
 
         public ApplicationDbContext(DbContextOptions<ApplicationDbContext> options) : base(options)
         {
@@ -51,6 +53,11 @@ namespace AiSupport.Infrastructure.DataBase
                  .WithOne(s => s.Tenant)
                  .HasForeignKey(s => s.TenantId)
                  .OnDelete(DeleteBehavior.Cascade);
+
+                b.HasMany(t => t.Customers)
+                 .WithOne(c => c.Tenant)
+                 .HasForeignKey(c => c.TenantId)
+                 .OnDelete(DeleteBehavior.Cascade);
             });
 
             builder.Entity<Subscription>(b =>
@@ -73,6 +80,38 @@ namespace AiSupport.Infrastructure.DataBase
                         j.ToTable("SubscriptionAppService");
                     });
             });
+
+            builder.Entity<Customer>(b =>
+            {
+                b.ToTable("Customers");
+                b.HasKey(c => c.Id);
+                b.Property(c => c.Name).IsRequired();
+                b.Property(c => c.ExternalId).HasMaxLength(256);
+                b.HasIndex(c => c.ExternalId)
+                    .HasDatabaseName("IX_Customers_ExternalId");
+            });
+
+            builder.Entity<PaymentAttempt>(b =>
+            {
+                b.ToTable("PaymentAttempts");
+                b.HasKey(p => p.Id);
+                b.Property(p => p.ProviderTransactionId).IsRequired().HasMaxLength(256);
+                b.HasIndex(p => p.ProviderTransactionId)
+                    .HasDatabaseName("IX_PaymentAttempts_ProviderTransactionId");
+                b.Property(p => p.Currency).IsRequired().HasMaxLength(16);
+                b.Property(p => p.Amount).HasPrecision(18, 2);
+                b.Property(p => p.Status)
+                    .HasConversion<string>()
+                    .IsRequired();
+                b.Property(p => p.ErrorCode).HasMaxLength(128);
+
+                b.HasOne(p => p.Customer)
+                 .WithMany(c => c.PaymentAttempts)
+                 .HasForeignKey(p => p.CustomerId)
+                 .OnDelete(DeleteBehavior.Cascade);
+            });
         }
     }
 }
+
+
