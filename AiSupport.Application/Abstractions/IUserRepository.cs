@@ -10,7 +10,8 @@ namespace AiSupport.Application.Abstractions
             string firstName,
             string lastName,
             string email,
-            string password);
+            string password,
+            Guid tenantId);
 
         Task<AppUser?> GetUserByIdAsync(Guid userId);
 

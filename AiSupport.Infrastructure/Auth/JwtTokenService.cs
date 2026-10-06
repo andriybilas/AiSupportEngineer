@@ -17,7 +17,7 @@ namespace AiSupport.Infrastructure.Auth
             _configuration = configuration;
         }
 
-        public JwtTokenResult CreateToken(Guid userId, string userName)
+        public JwtTokenResult CreateToken(Guid userId, string userName, Guid tenantId)
         {
             var issuer = _configuration["Jwt:Issuer"] ?? "AiSupportEngineer";
             var audience = _configuration["Jwt:Audience"] ?? "AiSupportEngineer";
@@ -42,6 +42,7 @@ namespace AiSupport.Infrastructure.Auth
                 new Claim(JwtRegisteredClaimNames.UniqueName, userName),
                 new Claim(ClaimTypes.NameIdentifier, userId.ToString()),
                 new Claim(ClaimTypes.Name, userName),
+                new Claim(AiSupportClaims.TenantId, tenantId.ToString()),
                 new Claim(JwtRegisteredClaimNames.Jti, Guid.NewGuid().ToString())
             };
 

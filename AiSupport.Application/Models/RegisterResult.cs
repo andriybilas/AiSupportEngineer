@@ -8,6 +8,7 @@ namespace AiSupport.Application.Models
         public Guid? UserId { get; set; }
         public string? Email { get; set; }
         public Guid? TenantId { get; set; }
+        public string? TenantName { get; set; }
         public string? Token { get; set; }
         public DateTime? ExpiresAt { get; set; }
         public IReadOnlyList<string> Errors { get; set; } = Array.Empty<string>();
@@ -16,6 +17,7 @@ namespace AiSupport.Application.Models
             Guid userId,
             string email,
             Guid tenantId,
+            string tenantName,
             string token,
             DateTime expiresAt)
         {
@@ -25,6 +27,7 @@ namespace AiSupport.Application.Models
                 UserId = userId,
                 Email = email,
                 TenantId = tenantId,
+                TenantName = tenantName,
                 Token = token,
                 ExpiresAt = expiresAt,
                 Errors = Array.Empty<string>()

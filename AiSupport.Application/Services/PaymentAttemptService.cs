@@ -29,14 +29,28 @@ namespace AiSupport.Application.Services
             return Map(paymentAttempt);
         }
 
+        /// <summary>
+        /// Returns payment attempts of a customer of the caller's tenant, newest first.
+        /// Both bounds are inclusive timestamps: CreatedDateTime &gt;= from and CreatedDateTime &lt;= to.
+        /// Input dates are normalized to UTC (Unspecified is treated as UTC, Local is converted).
+        /// A customer of another tenant is reported as not found.
+        /// </summary>
         public async Task<CustomerPaymentAttemptsResult> GetCustomerPaymentAttemptsAsync(
             Guid customerId,
+            Guid tenantId,
             DateTime? from,
             DateTime? to)
         {
+            var errors = new List<string>();
+
             if (customerId == Guid.Empty)
             {
-                return CustomerPaymentAttemptsResult.Failed("CustomerId is required.");
+                errors.Add("CustomerId is required.");
+            }
+
+            if (tenantId == Guid.Empty)
+            {
+                errors.Add("TenantId is required.");
             }
 
             var fromUtc = NormalizeToUtc(from);
@@ -44,10 +58,15 @@ namespace AiSupport.Application.Services
 
             if (IsInvalidPeriod(fromUtc, toUtc))
             {
-                return CustomerPaymentAttemptsResult.Failed("'from' must be earlier than or equal to 'to'.");
+                errors.Add("'from' must be earlier than or equal to 'to'.");
             }
 
-            var customer = await _customerRepository.GetByIdAsync(customerId);
+            if (errors.Count > 0)
+            {
+                return CustomerPaymentAttemptsResult.Failed(errors);
+            }
+
+            var customer = await _customerRepository.GetByIdAsync(customerId, tenantId);
 
             if (customer == null)
             {
@@ -55,7 +74,7 @@ namespace AiSupport.Application.Services
             }
 
             var paymentAttempts = await _paymentAttemptRepository.GetByCustomerIdAndPeriodAsync(
-                customerId,
+                customer.Id,
                 fromUtc,
                 toUtc);
 

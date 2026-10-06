@@ -40,7 +40,8 @@ namespace AiSupport.Infrastructure.Repositories
             string firstName,
             string lastName,
             string email,
-            string password)
+            string password,
+            Guid tenantId)
         {
             var user = new AppUser
             {
@@ -49,6 +50,7 @@ namespace AiSupport.Infrastructure.Repositories
                 FirstName = firstName,
                 LastName = lastName,
                 Name = userName,
+                TenantId = tenantId,
                 CreatedDateTime = DateTime.UtcNow,
                 UpdatedDateTime = DateTime.UtcNow
             };
@@ -148,7 +150,7 @@ namespace AiSupport.Infrastructure.Repositories
                 userName = user.Email ?? string.Empty;
             }
 
-            return CredentialValidationResult.Ok(user.Id, userName);
+            return CredentialValidationResult.Ok(user.Id, userName, user.TenantId);
         }
     }
 }

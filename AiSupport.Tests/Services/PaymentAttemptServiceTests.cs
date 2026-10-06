@@ -19,17 +19,18 @@ namespace AiSupport.Tests.Services
         }
 
         [Fact]
-        public async Task GetCustomerPaymentAttemptsAsync_WhenCustomerExists_ReturnsMappedAttemptsForPeriod()
+        public async Task GetCustomerPaymentAttemptsAsync_WhenCustomerBelongsToTenant_ReturnsMappedAttemptsForPeriod()
         {
             // Arrange
-            var customerId = Guid.NewGuid();
+            var tenantId = Guid.NewGuid();
+            var customer = CreateCustomer(tenantId);
             var from = new DateTime(2026, 9, 1, 0, 0, 0, DateTimeKind.Unspecified);
             var to = new DateTime(2026, 9, 30, 23, 59, 59, DateTimeKind.Utc);
 
             var completed = new PaymentAttempt
             {
                 Id = Guid.NewGuid(),
-                CustomerId = customerId,
+                CustomerId = customer.Id,
                 ProviderTransactionId = "txn_2",
                 Amount = 49.99m,
                 Currency = "USD",
@@ -41,7 +42,7 @@ namespace AiSupport.Tests.Services
             var failed = new PaymentAttempt
             {
                 Id = Guid.NewGuid(),
-                CustomerId = customerId,
+                CustomerId = customer.Id,
                 ProviderTransactionId = "txn_1",
                 Amount = 49.99m,
                 Currency = "USD",
@@ -50,19 +51,17 @@ namespace AiSupport.Tests.Services
                 CreatedDateTime = new DateTime(2026, 9, 10, 8, 30, 0, DateTimeKind.Utc)
             };
 
-            _customerRepository
-                .Setup(r => r.GetByIdAsync(customerId))
-                .ReturnsAsync(CreateCustomer(customerId));
+            SetupCustomerLookup(customer.Id, tenantId, customer);
 
             _paymentAttemptRepository
                 .Setup(r => r.GetByCustomerIdAndPeriodAsync(
-                    customerId,
+                    customer.Id,
                     It.IsAny<DateTime?>(),
                     It.IsAny<DateTime?>()))
                 .ReturnsAsync(new List<PaymentAttempt> { completed, failed });
 
             // Act
-            var result = await _service.GetCustomerPaymentAttemptsAsync(customerId, from, to);
+            var result = await _service.GetCustomerPaymentAttemptsAsync(customer.Id, tenantId, from, to);
 
             // Assert
             Assert.True(result.Succeeded);
@@ -72,7 +71,7 @@ namespace AiSupport.Tests.Services
 
             var first = result.Items[0];
             Assert.Equal(completed.Id, first.Id);
-            Assert.Equal(customerId, first.CustomerId);
+            Assert.Equal(customer.Id, first.CustomerId);
             Assert.Equal("txn_2", first.ProviderTransactionId);
             Assert.Equal(49.99m, first.Amount);
             Assert.Equal("USD", first.Currency);
@@ -87,35 +86,93 @@ namespace AiSupport.Tests.Services
 
             _paymentAttemptRepository.Verify(
                 r => r.GetByCustomerIdAndPeriodAsync(
-                    customerId,
+                    customer.Id,
                     It.Is<DateTime?>(d => IsUtcWithTicks(d, from.Ticks)),
                     It.Is<DateTime?>(d => IsUtcWithTicks(d, to.Ticks))),
                 Times.Once);
         }
 
         [Fact]
+        public async Task GetCustomerPaymentAttemptsAsync_PassesRequestedCustomerAndTenantToLookupAndCustomerIdToAttemptsQuery()
+        {
+            // Arrange
+            var tenantId = Guid.NewGuid();
+            var requestedCustomerId = Guid.NewGuid();
+            var customer = CreateCustomer(tenantId, requestedCustomerId);
+
+            SetupCustomerLookup(requestedCustomerId, tenantId, customer);
+
+            _paymentAttemptRepository
+                .Setup(r => r.GetByCustomerIdAndPeriodAsync(customer.Id, null, null))
+                .ReturnsAsync(new List<PaymentAttempt>());
+
+            // Act
+            var result = await _service.GetCustomerPaymentAttemptsAsync(requestedCustomerId, tenantId, null, null);
+
+            // Assert
+            Assert.True(result.Succeeded);
+
+            _customerRepository.Verify(
+                r => r.GetByIdAsync(requestedCustomerId, tenantId),
+                Times.Once);
+
+            _customerRepository.VerifyNoOtherCalls();
+
+            _paymentAttemptRepository.Verify(
+                r => r.GetByCustomerIdAndPeriodAsync(customer.Id, null, null),
+                Times.Once);
+
+            _paymentAttemptRepository.VerifyNoOtherCalls();
+        }
+
+        [Fact]
+        public async Task GetCustomerPaymentAttemptsAsync_WhenCustomerBelongsToAnotherTenant_ReturnsNotFound()
+        {
+            // Arrange
+            var callerTenantId = Guid.NewGuid();
+            var foreignCustomerId = Guid.NewGuid();
+
+            // The tenant-scoped lookup finds nothing for a customer owned by another tenant.
+            SetupCustomerLookup(foreignCustomerId, callerTenantId, null);
+
+            // Act
+            var result = await _service.GetCustomerPaymentAttemptsAsync(foreignCustomerId, callerTenantId, null, null);
+
+            // Assert
+            Assert.False(result.Succeeded);
+            Assert.True(result.NotFound);
+            Assert.Empty(result.Items);
+            Assert.Contains("Customer not found.", result.Errors);
+
+            _customerRepository.Verify(
+                r => r.GetByIdAsync(foreignCustomerId, callerTenantId),
+                Times.Once);
+
+            _paymentAttemptRepository.VerifyNoOtherCalls();
+        }
+
+        [Fact]
         public async Task GetCustomerPaymentAttemptsAsync_WhenDatesAreLocal_PassesDatesConvertedToUtc()
         {
             // Arrange
-            var customerId = Guid.NewGuid();
+            var tenantId = Guid.NewGuid();
+            var customer = CreateCustomer(tenantId);
             var from = new DateTime(2026, 9, 1, 12, 0, 0, DateTimeKind.Local);
             var to = new DateTime(2026, 9, 2, 12, 0, 0, DateTimeKind.Local);
             var expectedFromTicks = from.ToUniversalTime().Ticks;
             var expectedToTicks = to.ToUniversalTime().Ticks;
 
-            _customerRepository
-                .Setup(r => r.GetByIdAsync(customerId))
-                .ReturnsAsync(CreateCustomer(customerId));
+            SetupCustomerLookup(customer.Id, tenantId, customer);
 
             _paymentAttemptRepository
                 .Setup(r => r.GetByCustomerIdAndPeriodAsync(
-                    customerId,
+                    customer.Id,
                     It.IsAny<DateTime?>(),
                     It.IsAny<DateTime?>()))
                 .ReturnsAsync(new List<PaymentAttempt>());
 
             // Act
-            var result = await _service.GetCustomerPaymentAttemptsAsync(customerId, from, to);
+            var result = await _service.GetCustomerPaymentAttemptsAsync(customer.Id, tenantId, from, to);
 
             // Assert
             Assert.True(result.Succeeded);
@@ -123,7 +180,7 @@ namespace AiSupport.Tests.Services
 
             _paymentAttemptRepository.Verify(
                 r => r.GetByCustomerIdAndPeriodAsync(
-                    customerId,
+                    customer.Id,
                     It.Is<DateTime?>(d => IsUtcWithTicks(d, expectedFromTicks)),
                     It.Is<DateTime?>(d => IsUtcWithTicks(d, expectedToTicks))),
                 Times.Once);
@@ -133,25 +190,24 @@ namespace AiSupport.Tests.Services
         public async Task GetCustomerPaymentAttemptsAsync_WhenPeriodNotProvided_PassesNullBounds()
         {
             // Arrange
-            var customerId = Guid.NewGuid();
+            var tenantId = Guid.NewGuid();
+            var customer = CreateCustomer(tenantId);
 
-            _customerRepository
-                .Setup(r => r.GetByIdAsync(customerId))
-                .ReturnsAsync(CreateCustomer(customerId));
+            SetupCustomerLookup(customer.Id, tenantId, customer);
 
             _paymentAttemptRepository
-                .Setup(r => r.GetByCustomerIdAndPeriodAsync(customerId, null, null))
+                .Setup(r => r.GetByCustomerIdAndPeriodAsync(customer.Id, null, null))
                 .ReturnsAsync(new List<PaymentAttempt>());
 
             // Act
-            var result = await _service.GetCustomerPaymentAttemptsAsync(customerId, null, null);
+            var result = await _service.GetCustomerPaymentAttemptsAsync(customer.Id, tenantId, null, null);
 
             // Assert
             Assert.True(result.Succeeded);
             Assert.Empty(result.Items);
 
             _paymentAttemptRepository.Verify(
-                r => r.GetByCustomerIdAndPeriodAsync(customerId, null, null),
+                r => r.GetByCustomerIdAndPeriodAsync(customer.Id, null, null),
                 Times.Once);
         }
 
@@ -159,24 +215,19 @@ namespace AiSupport.Tests.Services
         public async Task GetCustomerPaymentAttemptsAsync_WhenCustomerMissing_ReturnsNotFound()
         {
             // Arrange
+            var tenantId = Guid.NewGuid();
             var customerId = Guid.NewGuid();
 
-            _customerRepository
-                .Setup(r => r.GetByIdAsync(customerId))
-                .ReturnsAsync((Customer?)null);
+            SetupCustomerLookup(customerId, tenantId, null);
 
             // Act
-            var result = await _service.GetCustomerPaymentAttemptsAsync(customerId, null, null);
+            var result = await _service.GetCustomerPaymentAttemptsAsync(customerId, tenantId, null, null);
 
             // Assert
             Assert.False(result.Succeeded);
             Assert.True(result.NotFound);
             Assert.Empty(result.Items);
             Assert.Contains("Customer not found.", result.Errors);
-
-            _customerRepository.Verify(
-                r => r.GetByIdAsync(customerId),
-                Times.Once);
 
             _paymentAttemptRepository.VerifyNoOtherCalls();
         }
@@ -185,12 +236,11 @@ namespace AiSupport.Tests.Services
         public async Task GetCustomerPaymentAttemptsAsync_WhenFromIsLaterThanTo_ReturnsValidationFailure()
         {
             // Arrange
-            var customerId = Guid.NewGuid();
             var from = new DateTime(2026, 9, 30, 0, 0, 0, DateTimeKind.Utc);
             var to = new DateTime(2026, 9, 1, 0, 0, 0, DateTimeKind.Utc);
 
             // Act
-            var result = await _service.GetCustomerPaymentAttemptsAsync(customerId, from, to);
+            var result = await _service.GetCustomerPaymentAttemptsAsync(Guid.NewGuid(), Guid.NewGuid(), from, to);
 
             // Assert
             Assert.False(result.Succeeded);
@@ -198,15 +248,14 @@ namespace AiSupport.Tests.Services
             Assert.Empty(result.Items);
             Assert.Contains("'from' must be earlier than or equal to 'to'.", result.Errors);
 
-            _customerRepository.VerifyNoOtherCalls();
-            _paymentAttemptRepository.VerifyNoOtherCalls();
+            VerifyNoRepositoryCalls();
         }
 
         [Fact]
         public async Task GetCustomerPaymentAttemptsAsync_WhenCustomerIdIsEmpty_ReturnsValidationFailure()
         {
             // Act
-            var result = await _service.GetCustomerPaymentAttemptsAsync(Guid.Empty, null, null);
+            var result = await _service.GetCustomerPaymentAttemptsAsync(Guid.Empty, Guid.NewGuid(), null, null);
 
             // Assert
             Assert.False(result.Succeeded);
@@ -214,16 +263,43 @@ namespace AiSupport.Tests.Services
             Assert.Empty(result.Items);
             Assert.Contains("CustomerId is required.", result.Errors);
 
+            VerifyNoRepositoryCalls();
+        }
+
+        [Fact]
+        public async Task GetCustomerPaymentAttemptsAsync_WhenTenantIdIsEmpty_ReturnsValidationFailure()
+        {
+            // Act
+            var result = await _service.GetCustomerPaymentAttemptsAsync(Guid.NewGuid(), Guid.Empty, null, null);
+
+            // Assert
+            Assert.False(result.Succeeded);
+            Assert.False(result.NotFound);
+            Assert.Empty(result.Items);
+            Assert.Contains("TenantId is required.", result.Errors);
+
+            VerifyNoRepositoryCalls();
+        }
+
+        private void SetupCustomerLookup(Guid customerId, Guid tenantId, Customer? customer)
+        {
+            _customerRepository
+                .Setup(r => r.GetByIdAsync(customerId, tenantId))
+                .ReturnsAsync(customer);
+        }
+
+        private void VerifyNoRepositoryCalls()
+        {
             _customerRepository.VerifyNoOtherCalls();
             _paymentAttemptRepository.VerifyNoOtherCalls();
         }
 
-        private static Customer CreateCustomer(Guid customerId)
+        private static Customer CreateCustomer(Guid tenantId, Guid? customerId = null)
         {
             return new Customer
             {
-                Id = customerId,
-                TenantId = Guid.NewGuid(),
+                Id = customerId ?? Guid.NewGuid(),
+                TenantId = tenantId,
                 Name = "Acme Corp",
                 CreatedDateTime = DateTime.UtcNow,
                 UpdatedDateTime = DateTime.UtcNow

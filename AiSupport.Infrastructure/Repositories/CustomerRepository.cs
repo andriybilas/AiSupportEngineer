@@ -15,17 +15,18 @@ namespace AiSupport.Infrastructure.Repositories
             _db = db;
         }
 
-        public async Task<Customer?> GetByIdAsync(Guid id)
+        public async Task<Customer?> GetByIdAsync(Guid id, Guid tenantId)
         {
             return await _db.Customers
                 .AsNoTracking()
-                .FirstOrDefaultAsync(c => c.Id == id);
+                .FirstOrDefaultAsync(c => c.Id == id && c.TenantId == tenantId);
         }
 
-        public async Task<IEnumerable<Customer>> GetByTenantIdAsync(Guid tenantId)
+        public async Task<IReadOnlyList<Customer>> GetByTenantIdAsync(Guid tenantId)
         {
             return await _db.Customers
                 .Where(c => c.TenantId == tenantId)
+                .OrderBy(c => c.Name)
                 .AsNoTracking()
                 .ToListAsync();
         }

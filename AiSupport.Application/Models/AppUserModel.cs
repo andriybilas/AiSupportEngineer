@@ -7,6 +7,11 @@ namespace AiSupport.Application.Models
         public string? FirstName { get; set; }
         public string? LastName { get; set; }
         public string? Email { get; set; }
-        public IEnumerable<AppTenantModel> Tenants { get; set; } = Enumerable.Empty<AppTenantModel>();
+        public AppTenantModel? Tenant { get; set; }
+
+        /// <summary>
+        /// App services the user can access: distinct services of the tenant's Active subscriptions.
+        /// </summary>
+        public IEnumerable<AppServiceModel> Services { get; set; } = Enumerable.Empty<AppServiceModel>();
     }
 }

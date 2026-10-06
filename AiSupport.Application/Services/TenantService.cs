@@ -83,14 +83,9 @@ namespace AiSupport.Application.Services
             return await _tenantRepository.DeleteAsync(id);
         }
 
-        public async Task<EntityOperationResult> AddUserAsync(Guid tenantId, Guid userId)
+        public async Task<EntityOperationResult> AssignUserAsync(Guid tenantId, Guid userId)
         {
-            return await _tenantRepository.AddUserAsync(tenantId, userId);
-        }
-
-        public async Task<EntityOperationResult> RemoveUserAsync(Guid tenantId, Guid userId)
-        {
-            return await _tenantRepository.RemoveUserAsync(tenantId, userId);
+            return await _tenantRepository.AssignUserAsync(tenantId, userId);
         }
 
         private static AppTenantModel Map(Domain.Models.AppTenant tenant)

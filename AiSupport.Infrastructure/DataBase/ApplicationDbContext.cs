@@ -30,17 +30,13 @@ namespace AiSupport.Infrastructure.DataBase
 
             builder.Entity<AppUser>(b =>
             {
-                b.HasMany(u => u.Tenants)
-                 .WithMany(t => t.AppUsers)
-                 .UsingEntity<Dictionary<string, object>>(
-                    "AppUserTenant",
-                    j => j.HasOne<AppTenant>().WithMany().HasForeignKey("TenantId").OnDelete(DeleteBehavior.Cascade),
-                    j => j.HasOne<AppUser>().WithMany().HasForeignKey("AppUserId").OnDelete(DeleteBehavior.Cascade),
-                    j =>
-                    {
-                        j.HasKey("AppUserId", "TenantId");
-                        j.ToTable("AppUserTenant");
-                    });
+                // Each user belongs to exactly one tenant. Deleting a tenant that still has users is blocked.
+                b.HasOne(u => u.Tenant)
+                 .WithMany(t => t.Users)
+                 .HasForeignKey(u => u.TenantId)
+                 .OnDelete(DeleteBehavior.Restrict);
+
+                b.HasIndex(u => u.TenantId);
             });
 
             builder.Entity<AppTenant>(b =>

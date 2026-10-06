@@ -5,7 +5,6 @@ namespace AiSupport.Application.Abstractions
 {
     public interface ITenantRepository
     {
-        Task<IEnumerable<AppTenant>> GetUserTenantsAsync(Guid userId);
 
         Task<AppTenant?> GetByIdAsync(Guid id);
 
@@ -15,10 +14,14 @@ namespace AiSupport.Application.Abstractions
 
         Task<EntityOperationResult> UpdateAsync(Guid id, string? name, string? description);
 
+        /// <summary>
+        /// Deletes a tenant. Fails (not found = false) when users are still assigned to it.
+        /// </summary>
         Task<EntityOperationResult> DeleteAsync(Guid id);
 
-        Task<EntityOperationResult> AddUserAsync(Guid tenantId, Guid userId);
-
-        Task<EntityOperationResult> RemoveUserAsync(Guid tenantId, Guid userId);
+        /// <summary>
+        /// Moves the user to the tenant (sets AppUser.TenantId). Idempotent.
+        /// </summary>
+        Task<EntityOperationResult> AssignUserAsync(Guid tenantId, Guid userId);
     }
 }

@@ -9,6 +9,6 @@ namespace AiSupport.Domain.Models
         public DateTime UpdatedDateTime { get; set; }
         public ICollection<Customer> Customers { get; set; } = new List<Customer>();
         public ICollection<Subscription> Subscriptions { get; set; } = new List<Subscription>();
-        public ICollection<AppUser> AppUsers { get; set; } = new List<AppUser>();
+        public ICollection<AppUser> Users { get; set; } = new List<AppUser>();
     }
 }

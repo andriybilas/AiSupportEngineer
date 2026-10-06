@@ -8,18 +8,15 @@ namespace AiSupport.Application.Services
     {
         private readonly IUserRepository _userRepository;
         private readonly ITenantRepository _tenantRepository;
-        private readonly ITransactionManager _transactionManager;
         private readonly IJwtTokenService _jwtTokenService;
 
         public AuthService(
             IUserRepository userRepository,
             ITenantRepository tenantRepository,
-            ITransactionManager transactionManager,
             IJwtTokenService jwtTokenService)
         {
             _userRepository = userRepository;
             _tenantRepository = tenantRepository;
-            _transactionManager = transactionManager;
             _jwtTokenService = jwtTokenService;
         }
 
@@ -53,7 +50,8 @@ namespace AiSupport.Application.Services
 
             var tokenResult = _jwtTokenService.CreateToken(
                 validation.UserId!.Value,
-                validation.UserName!);
+                validation.UserName!,
+                validation.TenantId);
 
             return LoginResult.Ok(
                 tokenResult.Token,
@@ -63,9 +61,8 @@ namespace AiSupport.Application.Services
         }
 
         /// <summary>
-        /// Registers a user (UserName = Email) and links it to an existing tenant.
-        /// User creation and tenant membership are written in one transaction,
-        /// so a failed link leaves no orphan user behind.
+        /// Registers a user (UserName = Email) in an existing tenant.
+        /// The tenant is stored on the user row itself, so creation is a single atomic insert.
         /// </summary>
         public async Task<RegisterResult> RegisterAsync(RegisterRequest request)
         {
@@ -91,44 +88,31 @@ namespace AiSupport.Application.Services
                 return RegisterResult.ConflictResult("Email is already registered.");
             }
 
-            await using var transaction = await _transactionManager.BeginTransactionAsync();
-
             var creationResult = await _userRepository.CreateUserAsync(
                 email,
                 string.Empty,
                 string.Empty,
                 email,
-                request.Password);
+                request.Password,
+                request.TenantId);
 
             if (!creationResult.Succeeded)
             {
-                await transaction.RollbackAsync();
                 return RegisterResult.Failed(creationResult.Errors);
             }
 
             var userId = creationResult.UserId!.Value;
-            var linkResult = await _tenantRepository.AddUserAsync(request.TenantId, userId);
 
-            if (!linkResult.Succeeded)
-            {
-                await transaction.RollbackAsync();
-
-                if (linkResult.NotFound)
-                {
-                    return RegisterResult.NotFoundResult("Tenant not found.");
-                }
-
-                return RegisterResult.Failed(linkResult.Errors);
-            }
-
-            await transaction.CommitAsync();
-
-            var tokenResult = _jwtTokenService.CreateToken(userId, email);
+            var tokenResult = _jwtTokenService.CreateToken(
+                userId,
+                email,
+                request.TenantId);
 
             return RegisterResult.Ok(
                 userId,
                 email,
                 request.TenantId,
+                tenant.Name,
                 tokenResult.Token,
                 tokenResult.ExpiresAt);
         }

@@ -62,6 +62,7 @@ namespace AiSupport.Api.Controllers
                 userId = result.UserId,
                 email = result.Email,
                 tenantId = result.TenantId,
+                tenantName = result.TenantName,
                 token = result.Token,
                 expiresAt = result.ExpiresAt
             };

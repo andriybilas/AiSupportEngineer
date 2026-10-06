@@ -28,17 +28,19 @@ namespace AiSupport.Application.Services
                 return null;
             }
 
-            var userTenants = await _tenantRepository.GetUserTenantsAsync(user.Id);
+            var tenant = await _tenantRepository.GetByIdAsync(user.TenantId);
 
-            var tenantIds = userTenants
-                .Select(t => t.Id)
-                .ToList();
+            AppTenantModel? tenantModel = null;
+            var services = new List<AppServiceModel>();
 
-            var subscriptions = await _subscriptionRepository.GetByTenantIdsAsync(tenantIds);
+            if (tenant != null)
+            {
+                var subscriptions = (await _subscriptionRepository.GetByTenantIdsAsync(new[] { tenant.Id }))
+                    .ToList();
 
-            var tenants = userTenants
-                .Select(ut => MapTenant(ut, subscriptions))
-                .ToList();
+                tenantModel = MapTenant(tenant, subscriptions);
+                services = MapActiveServices(subscriptions);
+            }
 
             var userName = user.Name;
 
@@ -54,7 +56,8 @@ namespace AiSupport.Application.Services
                 FirstName = user.FirstName,
                 LastName = user.LastName,
                 Email = user.Email ?? string.Empty,
-                Tenants = tenants
+                Tenant = tenantModel,
+                Services = services
             };
         }
 
@@ -116,6 +119,17 @@ namespace AiSupport.Application.Services
                 UpdatedDateTime = tenant.UpdatedDateTime,
                 Subscriptions = subscriptionsForTenant
             };
+        }
+
+        private static List<AppServiceModel> MapActiveServices(IEnumerable<Domain.Models.Subscription> subscriptions)
+        {
+            return subscriptions
+                .Where(s => s.Status == Domain.Models.SubscriptionStatus.Active)
+                .SelectMany(s => s.AppServices)
+                .DistinctBy(s => s.Id)
+                .OrderBy(s => s.Name)
+                .Select(MapService)
+                .ToList();
         }
 
         private static SubscriptionModel MapSubscription(Domain.Models.Subscription subscription)

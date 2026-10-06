@@ -91,28 +91,13 @@ namespace AiSupport.Api.Controllers
             return NoContent();
         }
 
-        [HttpPost("{tenantId:guid}/users/{userId:guid}")]
-        public async Task<IActionResult> AddUser(Guid tenantId, Guid userId)
+        /// <summary>
+        /// Assigns the user to this tenant (a user belongs to exactly one tenant).
+        /// </summary>
+        [HttpPut("{tenantId:guid}/users/{userId:guid}")]
+        public async Task<IActionResult> AssignUser(Guid tenantId, Guid userId)
         {
-            var result = await _tenantService.AddUserAsync(tenantId, userId);
-
-            if (result.NotFound)
-            {
-                return NotFound(result.Errors);
-            }
-
-            if (!result.Succeeded)
-            {
-                return BadRequest(result.Errors);
-            }
-
-            return NoContent();
-        }
-
-        [HttpDelete("{tenantId:guid}/users/{userId:guid}")]
-        public async Task<IActionResult> RemoveUser(Guid tenantId, Guid userId)
-        {
-            var result = await _tenantService.RemoveUserAsync(tenantId, userId);
+            var result = await _tenantService.AssignUserAsync(tenantId, userId);
 
             if (result.NotFound)
             {

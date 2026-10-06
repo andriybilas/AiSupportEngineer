@@ -10,46 +10,28 @@ namespace AiSupport.Tests.Services
     {
         private const string Email = "jane.doe@example.com";
         private const string Password = "Str0ng!Pass";
+        private const string TenantName = "Acme";
 
         private readonly Mock<IUserRepository> _userRepository = new(MockBehavior.Strict);
         private readonly Mock<ITenantRepository> _tenantRepository = new(MockBehavior.Strict);
-        private readonly Mock<ITransactionManager> _transactionManager = new(MockBehavior.Strict);
-        private readonly Mock<IApplicationTransaction> _transaction = new(MockBehavior.Strict);
         private readonly Mock<IJwtTokenService> _jwtTokenService = new(MockBehavior.Strict);
         private readonly AuthService _service;
 
         public AuthServiceRegisterTests()
         {
-            _transaction
-                .Setup(t => t.CommitAsync())
-                .Returns(Task.CompletedTask);
-
-            _transaction
-                .Setup(t => t.RollbackAsync())
-                .Returns(Task.CompletedTask);
-
-            _transaction
-                .Setup(t => t.DisposeAsync())
-                .Returns(ValueTask.CompletedTask);
-
-            _transactionManager
-                .Setup(m => m.BeginTransactionAsync())
-                .ReturnsAsync(_transaction.Object);
-
             _service = new AuthService(
                 _userRepository.Object,
                 _tenantRepository.Object,
-                _transactionManager.Object,
                 _jwtTokenService.Object);
         }
 
         [Fact]
-        public async Task RegisterAsync_WhenRequestIsValid_CreatesUserLinksTenantAndCommits()
+        public async Task RegisterAsync_WhenRequestIsValid_CreatesUserInTenantAndReturnsToken()
         {
             // Arrange
             var tenantId = Guid.NewGuid();
             var userId = Guid.NewGuid();
-            var expiresAt = new DateTime(2026, 9, 29, 10, 0, 0, DateTimeKind.Utc);
+            var expiresAt = new DateTime(2026, 10, 7, 10, 0, 0, DateTimeKind.Utc);
             var request = CreateRequest(tenantId);
             request.Email = "  " + Email + "  ";
 
@@ -62,15 +44,12 @@ namespace AiSupport.Tests.Services
                     string.Empty,
                     string.Empty,
                     Email,
-                    Password))
+                    Password,
+                    tenantId))
                 .ReturnsAsync(UserCreationResult.Ok(userId));
 
-            _tenantRepository
-                .Setup(r => r.AddUserAsync(tenantId, userId))
-                .ReturnsAsync(EntityOperationResult.Ok());
-
             _jwtTokenService
-                .Setup(s => s.CreateToken(userId, Email))
+                .Setup(s => s.CreateToken(userId, Email, tenantId))
                 .Returns(new JwtTokenResult { Token = "jwt-token", ExpiresAt = expiresAt });
 
             // Act
@@ -84,6 +63,7 @@ namespace AiSupport.Tests.Services
             Assert.Equal(userId, result.UserId);
             Assert.Equal(Email, result.Email);
             Assert.Equal(tenantId, result.TenantId);
+            Assert.Equal(TenantName, result.TenantName);
             Assert.Equal("jwt-token", result.Token);
             Assert.Equal(expiresAt, result.ExpiresAt);
 
@@ -93,15 +73,13 @@ namespace AiSupport.Tests.Services
                     string.Empty,
                     string.Empty,
                     Email,
-                    Password),
+                    Password,
+                    tenantId),
                 Times.Once);
 
-            _tenantRepository.Verify(
-                r => r.AddUserAsync(tenantId, userId),
+            _jwtTokenService.Verify(
+                s => s.CreateToken(userId, Email, tenantId),
                 Times.Once);
-
-            _transaction.Verify(t => t.CommitAsync(), Times.Once);
-            _transaction.Verify(t => t.RollbackAsync(), Times.Never);
         }
 
         [Fact]
@@ -120,7 +98,7 @@ namespace AiSupport.Tests.Services
             Assert.False(result.Conflict);
             Assert.Contains("Passwords do not match.", result.Errors);
 
-            VerifyNoRepositoryCalls();
+            VerifyNoDependencyCalls();
         }
 
         [Theory]
@@ -142,7 +120,7 @@ namespace AiSupport.Tests.Services
             Assert.False(result.Succeeded);
             Assert.Contains(expectedError, result.Errors);
 
-            VerifyNoRepositoryCalls();
+            VerifyNoDependencyCalls();
         }
 
         [Fact]
@@ -159,7 +137,7 @@ namespace AiSupport.Tests.Services
             Assert.False(result.NotFound);
             Assert.Contains("TenantId is required.", result.Errors);
 
-            VerifyNoRepositoryCalls();
+            VerifyNoDependencyCalls();
         }
 
         [Fact]
@@ -182,7 +160,7 @@ namespace AiSupport.Tests.Services
             Assert.Contains("Tenant not found.", result.Errors);
 
             _userRepository.VerifyNoOtherCalls();
-            _transactionManager.VerifyNoOtherCalls();
+            _jwtTokenService.VerifyNoOtherCalls();
         }
 
         [Fact]
@@ -206,11 +184,11 @@ namespace AiSupport.Tests.Services
 
             _userRepository.Verify(r => r.IsEmailRegisteredAsync(Email), Times.Once);
             _userRepository.VerifyNoOtherCalls();
-            _transactionManager.VerifyNoOtherCalls();
+            _jwtTokenService.VerifyNoOtherCalls();
         }
 
         [Fact]
-        public async Task RegisterAsync_WhenIdentityRejectsPassword_ReturnsErrorsAndRollsBack()
+        public async Task RegisterAsync_WhenIdentityRejectsPassword_ReturnsErrorsWithoutToken()
         {
             // Arrange
             var tenantId = Guid.NewGuid();
@@ -226,7 +204,8 @@ namespace AiSupport.Tests.Services
                     string.Empty,
                     string.Empty,
                     Email,
-                    Password))
+                    Password,
+                    tenantId))
                 .ReturnsAsync(UserCreationResult.Failed(new[] { identityError }));
 
             // Act
@@ -237,49 +216,8 @@ namespace AiSupport.Tests.Services
             Assert.False(result.NotFound);
             Assert.False(result.Conflict);
             Assert.Contains(identityError, result.Errors);
+            Assert.Null(result.Token);
 
-            _tenantRepository.Verify(
-                r => r.AddUserAsync(It.IsAny<Guid>(), It.IsAny<Guid>()),
-                Times.Never);
-
-            _transaction.Verify(t => t.RollbackAsync(), Times.Once);
-            _transaction.Verify(t => t.CommitAsync(), Times.Never);
-            _jwtTokenService.VerifyNoOtherCalls();
-        }
-
-        [Fact]
-        public async Task RegisterAsync_WhenLinkingToTenantFails_RollsBackAndReturnsFailure()
-        {
-            // Arrange
-            var tenantId = Guid.NewGuid();
-            var userId = Guid.NewGuid();
-            var request = CreateRequest(tenantId);
-
-            SetupTenantExists(tenantId);
-            SetupEmailRegistered(false);
-
-            _userRepository
-                .Setup(r => r.CreateUserAsync(
-                    Email,
-                    string.Empty,
-                    string.Empty,
-                    Email,
-                    Password))
-                .ReturnsAsync(UserCreationResult.Ok(userId));
-
-            _tenantRepository
-                .Setup(r => r.AddUserAsync(tenantId, userId))
-                .ReturnsAsync(EntityOperationResult.Failed("User is already a member of this tenant."));
-
-            // Act
-            var result = await _service.RegisterAsync(request);
-
-            // Assert
-            Assert.False(result.Succeeded);
-            Assert.Contains("User is already a member of this tenant.", result.Errors);
-
-            _transaction.Verify(t => t.RollbackAsync(), Times.Once);
-            _transaction.Verify(t => t.CommitAsync(), Times.Never);
             _jwtTokenService.VerifyNoOtherCalls();
         }
 
@@ -298,7 +236,7 @@ namespace AiSupport.Tests.Services
         {
             _tenantRepository
                 .Setup(r => r.GetByIdAsync(tenantId))
-                .ReturnsAsync(new AppTenant { Id = tenantId, Name = "Acme" });
+                .ReturnsAsync(new AppTenant { Id = tenantId, Name = TenantName });
         }
 
         private void SetupEmailRegistered(bool registered)
@@ -308,11 +246,10 @@ namespace AiSupport.Tests.Services
                 .ReturnsAsync(registered);
         }
 
-        private void VerifyNoRepositoryCalls()
+        private void VerifyNoDependencyCalls()
         {
             _userRepository.VerifyNoOtherCalls();
             _tenantRepository.VerifyNoOtherCalls();
-            _transactionManager.VerifyNoOtherCalls();
             _jwtTokenService.VerifyNoOtherCalls();
         }
     }

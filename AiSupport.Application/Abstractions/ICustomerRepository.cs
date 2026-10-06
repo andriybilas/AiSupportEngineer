@@ -5,9 +5,16 @@ namespace AiSupport.Application.Abstractions
 {
     public interface ICustomerRepository
     {
-        Task<Customer?> GetByIdAsync(Guid id);
+        /// <summary>
+        /// Returns the customer only when it belongs to the given tenant;
+        /// a customer of another tenant is reported the same way as a missing one (null).
+        /// </summary>
+        Task<Customer?> GetByIdAsync(Guid id, Guid tenantId);
 
-        Task<IEnumerable<Customer>> GetByTenantIdAsync(Guid tenantId);
+        /// <summary>
+        /// Returns all customers of the tenant, ordered by Name.
+        /// </summary>
+        Task<IReadOnlyList<Customer>> GetByTenantIdAsync(Guid tenantId);
 
         Task<IEnumerable<Customer>> GetAllAsync();
 

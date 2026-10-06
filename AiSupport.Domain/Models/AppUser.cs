@@ -10,6 +10,7 @@ namespace AiSupport.Domain.Models
         public string? Address { get; set; }
         public DateTime CreatedDateTime { get; set; }
         public DateTime UpdatedDateTime { get; set; }
-        public ICollection<AppTenant> Tenants { get; set; } = new List<AppTenant>();
+        public Guid TenantId { get; set; }
+        public AppTenant Tenant { get; set; } = null!;
     }
 }

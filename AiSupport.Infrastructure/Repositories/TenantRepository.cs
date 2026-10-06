@@ -15,14 +15,6 @@ namespace AiSupport.Infrastructure.Repositories
             _db = db;
         }
 
-        public async Task<IEnumerable<AppTenant>> GetUserTenantsAsync(Guid userId)
-        {
-            return await _db.Tenants
-                .Where(t => t.AppUsers.Any(u => u.Id == userId))
-                .AsNoTracking()
-                .ToListAsync();
-        }
-
         public async Task<AppTenant?> GetByIdAsync(Guid id)
         {
             return await _db.Tenants
@@ -91,19 +83,25 @@ namespace AiSupport.Infrastructure.Repositories
                 return EntityOperationResult.NotFoundResult("Tenant not found.");
             }
 
+            var hasUsers = await _db.Users.AnyAsync(u => u.TenantId == id);
+
+            if (hasUsers)
+            {
+                return EntityOperationResult.Failed(
+                    "Tenant still has users. Assign them to another tenant before deleting it.");
+            }
+
             _db.Tenants.Remove(entity);
             await _db.SaveChangesAsync();
 
             return EntityOperationResult.Ok();
         }
 
-        public async Task<EntityOperationResult> AddUserAsync(Guid tenantId, Guid userId)
+        public async Task<EntityOperationResult> AssignUserAsync(Guid tenantId, Guid userId)
         {
-            var tenant = await _db.Tenants
-                .Include(t => t.AppUsers)
-                .FirstOrDefaultAsync(t => t.Id == tenantId);
+            var tenantExists = await _db.Tenants.AnyAsync(t => t.Id == tenantId);
 
-            if (tenant == null)
+            if (!tenantExists)
             {
                 return EntityOperationResult.NotFoundResult("Tenant not found.");
             }
@@ -115,41 +113,13 @@ namespace AiSupport.Infrastructure.Repositories
                 return EntityOperationResult.NotFoundResult("User not found.");
             }
 
-            var alreadyMember = tenant.AppUsers.Any(u => u.Id == userId);
-
-            if (alreadyMember)
+            if (user.TenantId == tenantId)
             {
-                return EntityOperationResult.Failed("User is already a member of this tenant.");
+                return EntityOperationResult.Ok();
             }
 
-            tenant.AppUsers.Add(user);
-            tenant.UpdatedDateTime = DateTime.UtcNow;
-
-            await _db.SaveChangesAsync();
-
-            return EntityOperationResult.Ok();
-        }
-
-        public async Task<EntityOperationResult> RemoveUserAsync(Guid tenantId, Guid userId)
-        {
-            var tenant = await _db.Tenants
-                .Include(t => t.AppUsers)
-                .FirstOrDefaultAsync(t => t.Id == tenantId);
-
-            if (tenant == null)
-            {
-                return EntityOperationResult.NotFoundResult("Tenant not found.");
-            }
-
-            var user = tenant.AppUsers.FirstOrDefault(u => u.Id == userId);
-
-            if (user == null)
-            {
-                return EntityOperationResult.NotFoundResult("User is not a member of this tenant.");
-            }
-
-            tenant.AppUsers.Remove(user);
-            tenant.UpdatedDateTime = DateTime.UtcNow;
+            user.TenantId = tenantId;
+            user.UpdatedDateTime = DateTime.UtcNow;
 
             await _db.SaveChangesAsync();
 
