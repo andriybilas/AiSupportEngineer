@@ -7,6 +7,7 @@ namespace AiSupport.Api.Controllers
 {
     [ApiController]
     [Route("api/[controller]")]
+    [Authorize]
     public class UserController : ControllerBase
     {
         private readonly AppUserService _userService;
@@ -16,24 +17,6 @@ namespace AiSupport.Api.Controllers
             _userService = userService;
         }
 
-        [AllowAnonymous]
-        [HttpPost("register")]
-        public async Task<IActionResult> Register([FromBody] RegisterUserRequest request)
-        {
-            var result = await _userService.RegisterAsync(request);
-
-            if (!result.Succeeded)
-            {
-                return BadRequest(result.Errors);
-            }
-
-            return CreatedAtAction(
-                nameof(GetUser),
-                new { userId = result.UserId },
-                new { userId = result.UserId });
-        }
-
-        [Authorize]
         [HttpGet("{userId:guid}")]
         public async Task<IActionResult> GetUser(Guid userId)
         {
@@ -47,7 +30,6 @@ namespace AiSupport.Api.Controllers
             return Ok(user);
         }
 
-        [Authorize]
         [HttpPut("{userId:guid}")]
         public async Task<IActionResult> UpdateUser(Guid userId, [FromBody] UpdateUserRequest request)
         {

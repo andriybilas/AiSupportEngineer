@@ -19,48 +19,6 @@ namespace AiSupport.Application.Services
             _subscriptionRepository = subscriptionRepository;
         }
 
-        public async Task<RegisterUserResult> RegisterAsync(RegisterUserRequest request)
-        {
-            var errors = new List<string>();
-
-            if (string.IsNullOrWhiteSpace(request.UserName))
-            {
-                errors.Add("UserName is required.");
-            }
-
-            if (string.IsNullOrWhiteSpace(request.Email))
-            {
-                errors.Add("Email is required.");
-            }
-
-            if (string.IsNullOrWhiteSpace(request.Password))
-            {
-                errors.Add("Password is required.");
-            }
-
-            if (errors.Count > 0)
-            {
-                return RegisterUserResult.Failed(errors);
-            }
-
-            var firstName = request.FirstName ?? string.Empty;
-            var lastName = request.LastName ?? string.Empty;
-
-            var creationResult = await _userRepository.CreateUserAsync(
-                request.UserName,
-                firstName,
-                lastName,
-                request.Email,
-                request.Password);
-
-            if (!creationResult.Succeeded)
-            {
-                return RegisterUserResult.Failed(creationResult.Errors);
-            }
-
-            return RegisterUserResult.Ok(creationResult.UserId!.Value);
-        }
-
         public async Task<AppUserModel?> GetUserById(Guid userId)
         {
             var user = await _userRepository.GetUserByIdAsync(userId);

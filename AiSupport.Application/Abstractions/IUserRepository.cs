@@ -14,6 +14,8 @@ namespace AiSupport.Application.Abstractions
 
         Task<AppUser?> GetUserByIdAsync(Guid userId);
 
+        Task<bool> IsEmailRegisteredAsync(string email);
+
         Task<UserUpdateResult> UpdateUserAsync(
             Guid userId,
             string? userName,

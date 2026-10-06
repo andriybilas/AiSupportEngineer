@@ -11,6 +11,11 @@ namespace AiSupport.Application.Abstractions
 
         Task<IEnumerable<PaymentAttempt>> GetByTenantIdAsync(Guid tenantId);
 
+        Task<IReadOnlyList<PaymentAttempt>> GetByCustomerIdAndPeriodAsync(
+            Guid customerId,
+            DateTime? from,
+            DateTime? to);
+
         Task<EntityCreateResult<PaymentAttempt>> CreateAsync(
             Guid customerId,
             string providerTransactionId,

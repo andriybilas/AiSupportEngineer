@@ -79,6 +79,7 @@ namespace AiSupport.Infrastructure.DependencyInjection
             services.AddScoped<ICustomerRepository, CustomerRepository>();
             services.AddScoped<IPaymentAttemptRepository, PaymentAttemptRepository>();
             services.AddScoped<IJwtTokenService, JwtTokenService>();
+            services.AddScoped<ITransactionManager, EfTransactionManager>();
 
             return services;
         }

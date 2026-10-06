@@ -25,6 +25,16 @@ namespace AiSupport.Infrastructure.Repositories
                 .FirstOrDefaultAsync(u => u.Id == userId);
         }
 
+        public async Task<bool> IsEmailRegisteredAsync(string email)
+        {
+            var normalizedEmail = _userManager.NormalizeEmail(email);
+            var normalizedUserName = _userManager.NormalizeName(email);
+
+            return await _db.Users.AnyAsync(u =>
+                u.NormalizedEmail == normalizedEmail
+                || u.NormalizedUserName == normalizedUserName);
+        }
+
         public async Task<UserCreationResult> CreateUserAsync(
             string userName,
             string firstName,

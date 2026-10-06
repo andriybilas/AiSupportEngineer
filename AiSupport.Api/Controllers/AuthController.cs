@@ -35,5 +35,42 @@ namespace AiSupport.Api.Controllers
                 userName = result.UserName
             });
         }
+
+        [AllowAnonymous]
+        [HttpPost("register")]
+        public async Task<IActionResult> Register([FromBody] RegisterRequest request)
+        {
+            var result = await _authService.RegisterAsync(request);
+
+            if (result.NotFound)
+            {
+                return NotFound(result.Errors);
+            }
+
+            if (result.Conflict)
+            {
+                return Conflict(result.Errors);
+            }
+
+            if (!result.Succeeded)
+            {
+                return BadRequest(result.Errors);
+            }
+
+            var response = new
+            {
+                userId = result.UserId,
+                email = result.Email,
+                tenantId = result.TenantId,
+                token = result.Token,
+                expiresAt = result.ExpiresAt
+            };
+
+            return CreatedAtAction(
+                nameof(UserController.GetUser),
+                "User",
+                new { userId = result.UserId },
+                response);
+        }
     }
 }

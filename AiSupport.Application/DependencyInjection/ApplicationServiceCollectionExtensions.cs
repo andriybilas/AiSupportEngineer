@@ -12,6 +12,7 @@ namespace AiSupport.Application.DependencyInjection
             services.AddScoped<TenantService>();
             services.AddScoped<SubscriptionService>();
             services.AddScoped<AuthService>();
+            services.AddScoped<PaymentAttemptService>();
 
             return services;
         }

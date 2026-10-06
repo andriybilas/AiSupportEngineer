@@ -38,6 +38,33 @@ namespace AiSupport.Infrastructure.Repositories
                 .ToListAsync();
         }
 
+        /// <inheritdoc />
+        public async Task<IReadOnlyList<PaymentAttempt>> GetByCustomerIdAndPeriodAsync(
+            Guid customerId,
+            DateTime? from,
+            DateTime? to)
+        {
+            var query = _db.PaymentAttempts
+                .AsNoTracking()
+                .Where(p => p.CustomerId == customerId);
+
+            if (from.HasValue)
+            {
+                var fromValue = from.Value;
+                query = query.Where(p => p.CreatedDateTime >= fromValue);
+            }
+
+            if (to.HasValue)
+            {
+                var toValue = to.Value;
+                query = query.Where(p => p.CreatedDateTime <= toValue);
+            }
+
+            return await query
+                .OrderByDescending(p => p.CreatedDateTime)
+                .ToListAsync();
+        }
+
         public async Task<EntityCreateResult<PaymentAttempt>> CreateAsync(
             Guid customerId,
             string providerTransactionId,
